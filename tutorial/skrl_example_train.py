@@ -55,7 +55,7 @@ class Shared(GaussianMixin, DeterministicMixin, Model):
 
 
 # 加载并包装Isaac Lab环境
-env = load_isaaclab_env(task_name="Isaac-Velocity-Rough-Unitree-A1-v0")
+env = load_isaaclab_env(task_name="Isaac-Velocity-Flat-Unitree-Go1-v0")
 env = wrap_env(env)
 
 device = env.device
