@@ -70,69 +70,79 @@ class CartpoleSceneCfg(InteractiveSceneCfg):
         spawn=sim_utils.DomeLightCfg(color=(0.75, 0.75, 0.75), intensity=2500.0),
     )
 
-    # cabinet definition
-    cabinet = ArticulationCfg(
-        prim_path="{ENV_REGEX_NS}/Cabinet",
+    # # cabinet definition
+    # cabinet = ArticulationCfg(
+    #     prim_path="{ENV_REGEX_NS}/Cabinet",
+    #     spawn=sim_utils.UsdFileCfg(
+    #         usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Sektion_Cabinet/sektion_cabinet_instanceable.usd",
+    #         activate_contact_sensors=False,
+    #     ),
+    #     init_state=ArticulationCfg.InitialStateCfg(
+    #         pos=(0.8, 0, 0.4),
+    #         rot=(0.0, 0.0, 0.0, 1.0),
+    #         joint_pos={
+    #             "door_left_joint": 0.0,
+    #             "door_right_joint": 0.0,
+    #             "drawer_bottom_joint": 0.0,
+    #             "drawer_top_joint": 0.0,
+    #         },
+    #     ),
+    #     actuators={
+    #         "drawers": ImplicitActuatorCfg(
+    #             joint_names_expr=["drawer_top_joint", "drawer_bottom_joint"],
+    #             effort_limit=87.0,
+    #             velocity_limit=100.0,
+    #             stiffness=10.0,
+    #             damping=1.0,
+    #         ),
+    #         "doors": ImplicitActuatorCfg(
+    #             joint_names_expr=["door_left_joint", "door_right_joint"],
+    #             effort_limit=87.0,
+    #             velocity_limit=100.0,
+    #             stiffness=10.0,
+    #             damping=2.5,
+    #         ),
+    #     },
+    # )
+
+    # # Frame definitions for the cabinet.
+    # cabinet_frame = FrameTransformerCfg(
+    #     prim_path="{ENV_REGEX_NS}/Cabinet/sektion",
+    #     debug_vis=True,
+    #     visualizer_cfg=FRAME_MARKER_SMALL_CFG.replace(prim_path="/Visuals/CabinetFrameTransformer"),
+    #     target_frames=[
+    #         FrameTransformerCfg.FrameCfg(
+    #             prim_path="{ENV_REGEX_NS}/Cabinet/drawer_handle_top",
+    #             name="drawer_handle_top",
+    #             offset=OffsetCfg(
+    #                 pos=(0.305, 0.0, 0.01),
+    #                 rot=(0.5, 0.5, -0.5, -0.5),  # align with end-effector frame
+    #             ),
+    #         ),
+    #     ],
+    # )
+
+    # # Adding a sphere to the scene
+    # sphere = AssetBaseCfg(
+    #     prim_path="{ENV_REGEX_NS}/Sphere",
+    #     spawn=sim_utils.SphereCfg(
+    #         radius=0.03,  # radius of the sphere
+    #     ),
+    #     init_state=AssetBaseCfg.InitialStateCfg(
+    #         pos=(0.0, 0.0, 1.0),  # position of the sphere
+    #     ),
+    # )
+    table = AssetBaseCfg(
+        prim_path="{ENV_REGEX_NS}/tiny_tennis_table",
         spawn=sim_utils.UsdFileCfg(
-            usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Sektion_Cabinet/sektion_cabinet_instanceable.usd",
-            activate_contact_sensors=False,
+            usd_path="C:/ML_Projects/IsaacLab/user/usd_asset/tiny_tennis_table_1.usd",
         ),
         init_state=ArticulationCfg.InitialStateCfg(
-            pos=(0.8, 0, 0.4),
-            rot=(0.0, 0.0, 0.0, 1.0),
-            joint_pos={
-                "door_left_joint": 0.0,
-                "door_right_joint": 0.0,
-                "drawer_bottom_joint": 0.0,
-                "drawer_top_joint": 0.0,
-            },
-        ),
-        actuators={
-            "drawers": ImplicitActuatorCfg(
-                joint_names_expr=["drawer_top_joint", "drawer_bottom_joint"],
-                effort_limit=87.0,
-                velocity_limit=100.0,
-                stiffness=10.0,
-                damping=1.0,
-            ),
-            "doors": ImplicitActuatorCfg(
-                joint_names_expr=["door_left_joint", "door_right_joint"],
-                effort_limit=87.0,
-                velocity_limit=100.0,
-                stiffness=10.0,
-                damping=2.5,
-            ),
-        },
-    )
-
-    # Frame definitions for the cabinet.
-    cabinet_frame = FrameTransformerCfg(
-        prim_path="{ENV_REGEX_NS}/Cabinet/sektion",
-        debug_vis=True,
-        visualizer_cfg=FRAME_MARKER_SMALL_CFG.replace(prim_path="/Visuals/CabinetFrameTransformer"),
-        target_frames=[
-            FrameTransformerCfg.FrameCfg(
-                prim_path="{ENV_REGEX_NS}/Cabinet/drawer_handle_top",
-                name="drawer_handle_top",
-                offset=OffsetCfg(
-                    pos=(0.305, 0.0, 0.01),
-                    rot=(0.5, 0.5, -0.5, -0.5),  # align with end-effector frame
-                ),
-            ),
-        ],
-    )
-
-    # Adding a sphere to the scene
-    sphere = AssetBaseCfg(
-        prim_path="{ENV_REGEX_NS}/Sphere",
-        spawn=sim_utils.SphereCfg(
-            radius=0.03,  # radius of the sphere
-        ),
-        init_state=AssetBaseCfg.InitialStateCfg(
-            pos=(0.0, 0.0, 1.0),  # position of the sphere
+        pos=(2.0, 0.0, 0.4),
+        rot=(0.0, 0.0, 0.0, 1.0),
         ),
     )
-
+    
     # articulation
     unitree_go1: ArticulationCfg = UNITREE_GO1_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
@@ -160,7 +170,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             robot.write_root_state_to_sim(root_state)
             # set joint positions with some noise
             joint_pos, joint_vel = robot.data.default_joint_pos.clone(), robot.data.default_joint_vel.clone()
-            joint_pos += torch.rand_like(joint_pos) * 0.1
+            joint_pos -= torch.rand_like(joint_pos) * 0.1
             robot.write_joint_state_to_sim(joint_pos, joint_vel)
             # clear internal buffers
             scene.reset()
