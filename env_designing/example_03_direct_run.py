@@ -34,8 +34,8 @@ from omni.isaac.lab.envs import ManagerBasedRLEnv
 
 # from omni.isaac.lab_tasks.manager_based.classic.cartpole.cartpole_env_cfg import CartpoleEnvCfg
 import sys
-sys.path.append('C:/ML_Projects/IsaacLab/user/PONG')
-from pong_env import QuadrupedEnv, QuadrupedEnvCfg
+sys.path.append('C:/ML_Projects/IsaacLab/user/env_designing')
+from example_03_direct import CartpoleEnv, CartpoleEnvCfg
 
 from omni.isaac.lab.envs import DirectRLEnv, DirectRLEnvCfg
 
@@ -43,12 +43,12 @@ from omni.isaac.lab.envs import DirectRLEnv, DirectRLEnvCfg
 def main():
     """Main function."""
     # create environment configuration
-    env_cfg = QuadrupedEnvCfg()
+    env_cfg = CartpoleEnvCfg()
     env_cfg.scene.num_envs = args_cli.num_envs
     # setup RL environment
     # env = ManagerBasedRLEnv(cfg=env_cfg)
     # Instantiate the environment
-    env = QuadrupedEnv(env_cfg)
+    env = CartpoleEnv(env_cfg)
 
     # Reset the environment
     env.reset()
@@ -57,7 +57,9 @@ def main():
     num_steps = 100
     for _ in range(num_steps):
         # Generate random actions
-        actions = torch.rand((env.num_envs, 4)) * 2 - 1  # Random actions between -1 and 1
+        actions = torch.rand((env.num_envs, 1)) * 2 - 1  # Random actions between -1 and 1
+        # put action to gpu
+        actions = actions.to(env.device)
 
         # Step the environment
         env.step(actions)

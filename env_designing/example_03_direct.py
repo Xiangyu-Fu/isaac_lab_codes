@@ -21,6 +21,26 @@ from omni.isaac.lab.utils import configclass
 from omni.isaac.lab.utils.math import sample_uniform
 
 
+# interactive scene configuration
+from omni.isaac.lab.assets import ArticulationCfg, AssetBaseCfg
+
+
+@configclass
+class CartpoleSceneCfg(InteractiveSceneCfg):
+    """Configuration for a cart-pole scene."""
+
+    # ground plane
+    ground = AssetBaseCfg(prim_path="/World/defaultGroundPlane", spawn=sim_utils.GroundPlaneCfg())
+
+    # lights
+    dome_light = AssetBaseCfg(
+        prim_path="/World/Light", spawn=sim_utils.DomeLightCfg(intensity=3000.0, color=(0.75, 0.75, 0.75))
+    )
+
+    # articulation
+    cartpole: ArticulationCfg = CARTPOLE_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+
+
 @configclass
 class CartpoleEnvCfg(DirectRLEnvCfg):
     # env
@@ -43,7 +63,7 @@ class CartpoleEnvCfg(DirectRLEnvCfg):
     pole_dof_name = "cart_to_pole"
 
     # scene
-    scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=4096, env_spacing=4.0, replicate_physics=True)
+    scene: InteractiveSceneCfg = CartpoleSceneCfg(num_envs=4096, env_spacing=4.0, replicate_physics=True)
 
     # reset
     max_cart_pos = 3.0  # the cart is reset if it exceeds that position [m]
@@ -71,17 +91,18 @@ class CartpoleEnv(DirectRLEnv):
         self.joint_vel = self.cartpole.data.joint_vel
 
     def _setup_scene(self):
-        self.cartpole = Articulation(self.cfg.robot_cfg)
-        # add ground plane
-        spawn_ground_plane(prim_path="/World/ground", cfg=GroundPlaneCfg())
-        # clone, filter, and replicate
-        self.scene.clone_environments(copy_from_source=False)
-        self.scene.filter_collisions(global_prim_paths=[])
-        # add articultion to scene
-        self.scene.articulations["cartpole"] = self.cartpole
-        # add lights
-        light_cfg = sim_utils.DomeLightCfg(intensity=2000.0, color=(0.75, 0.75, 0.75))
-        light_cfg.func("/World/Light", light_cfg)
+        self.cartpole = self.cfg.scene.cartpole
+    #     self.cartpole = Articulation(self.cfg.robot_cfg)
+    #     # add ground plane
+    #     spawn_ground_plane(prim_path="/World/ground", cfg=GroundPlaneCfg())
+    #     # clone, filter, and replicate
+    #     self.scene.clone_environments(copy_from_source=False)
+    #     self.scene.filter_collisions(global_prim_paths=[])
+    #     # add articultion to scene
+    #     self.scene.articulations["cartpole"] = self.cartpole
+    #     # add lights
+    #     light_cfg = sim_utils.DomeLightCfg(intensity=2000.0, color=(0.75, 0.75, 0.75))
+    #     light_cfg.func("/World/Light", light_cfg)
 
     def _pre_physics_step(self, actions: torch.Tensor) -> None:
         self.actions = self.action_scale * actions.clone()

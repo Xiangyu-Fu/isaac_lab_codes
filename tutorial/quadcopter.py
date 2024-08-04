@@ -130,6 +130,7 @@ class QuadcopterEnv(DirectRLEnv):
         self.set_debug_vis(self.cfg.debug_vis)
 
     def _setup_scene(self):
+        # 初始化机器人，并将其添加到场景中的 articulations 字典。
         self._robot = Articulation(self.cfg.robot)
         self.scene.articulations["robot"] = self._robot
 

@@ -70,12 +70,10 @@ class QuadrupedEnvCfg(DirectRLEnvCfg):
     ang_vel_reward_scale = -0.01
     distance_to_goal_reward_scale = 15.0
 
-    # # Box configuration
-    # box: AssetBaseCfg = AssetBaseCfg(
-    #     prim_path="/World/envs/env_.*/Box",
-    #     asset_path="path_to_box_asset",  # Provide the correct asset path
-    #     scale=(0.5, 0.5, 0.5),  # Adjust scale as needed
-    # )
+    # Box configuration
+    box: AssetBaseCfg = AssetBaseCfg(
+        prim_path="/World/envs/env_.*/Box"
+    )
 
 
 class QuadrupedEnv(DirectRLEnv):
@@ -122,6 +120,7 @@ class QuadrupedEnv(DirectRLEnv):
         # clone, filter, and replicate
         self.scene.clone_environments(copy_from_source=False)
         self.scene.filter_collisions(global_prim_paths=[self.cfg.terrain.prim_path])
+        
         # add lights
         light_cfg = sim_utils.DomeLightCfg(intensity=2000.0, color=(0.75, 0.75, 0.75))
         light_cfg.func("/World/Light", light_cfg)
