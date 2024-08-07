@@ -34,6 +34,7 @@ simulation_app = app_launcher.app
 """Rest everything follows."""
 
 import torch
+import math
 
 import omni.isaac.lab.sim as sim_utils
 from omni.isaac.lab.assets import ArticulationCfg, AssetBaseCfg
@@ -57,8 +58,18 @@ FRAME_MARKER_SMALL_CFG.markers["frame"].scale = (0.10, 0.10, 0.10)
 from omni.isaac.lab.assets import RigidObject, RigidObjectCfg
 import omni.isaac.core.utils.prims as prim_utils
 
+from omni.isaac.lab.envs import ManagerBasedRLEnvCfg, ManagerBasedRLEnv
+import omni.isaac.lab_tasks.manager_based.locomotion.velocity.mdp as mdp
+from omni.isaac.lab.managers import EventTermCfg as EventTerm
+from omni.isaac.lab.managers import ObservationGroupCfg as ObsGroup
+from omni.isaac.lab.managers import ObservationTermCfg as ObsTerm
+from omni.isaac.lab.managers import RewardTermCfg as RewTerm
+from omni.isaac.lab.managers import SceneEntityCfg
+from omni.isaac.lab.managers import TerminationTermCfg as DoneTerm
+
+
 @configclass
-class CartpoleSceneCfg(InteractiveSceneCfg):
+class QuadrupedSceneCfg(InteractiveSceneCfg):
     """Configuration for a cart-pole scene."""
 
     # ground plane
@@ -70,68 +81,6 @@ class CartpoleSceneCfg(InteractiveSceneCfg):
         spawn=sim_utils.DomeLightCfg(color=(0.75, 0.75, 0.75), intensity=2500.0),
     )
 
-    # # cabinet definition
-    # cabinet = ArticulationCfg(
-    #     prim_path="{ENV_REGEX_NS}/Cabinet",
-    #     spawn=sim_utils.UsdFileCfg(
-    #         usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Sektion_Cabinet/sektion_cabinet_instanceable.usd",
-    #         activate_contact_sensors=False,
-    #     ),
-    #     init_state=ArticulationCfg.InitialStateCfg(
-    #         pos=(0.8, 0, 0.4),
-    #         rot=(0.0, 0.0, 0.0, 1.0),
-    #         joint_pos={
-    #             "door_left_joint": 0.0,
-    #             "door_right_joint": 0.0,
-    #             "drawer_bottom_joint": 0.0,
-    #             "drawer_top_joint": 0.0,
-    #         },
-    #     ),
-    #     actuators={
-    #         "drawers": ImplicitActuatorCfg(
-    #             joint_names_expr=["drawer_top_joint", "drawer_bottom_joint"],
-    #             effort_limit=87.0,
-    #             velocity_limit=100.0,
-    #             stiffness=10.0,
-    #             damping=1.0,
-    #         ),
-    #         "doors": ImplicitActuatorCfg(
-    #             joint_names_expr=["door_left_joint", "door_right_joint"],
-    #             effort_limit=87.0,
-    #             velocity_limit=100.0,
-    #             stiffness=10.0,
-    #             damping=2.5,
-    #         ),
-    #     },
-    # )
-
-    # # Frame definitions for the cabinet.
-    # cabinet_frame = FrameTransformerCfg(
-    #     prim_path="{ENV_REGEX_NS}/Cabinet/sektion",
-    #     debug_vis=True,
-    #     visualizer_cfg=FRAME_MARKER_SMALL_CFG.replace(prim_path="/Visuals/CabinetFrameTransformer"),
-    #     target_frames=[
-    #         FrameTransformerCfg.FrameCfg(
-    #             prim_path="{ENV_REGEX_NS}/Cabinet/drawer_handle_top",
-    #             name="drawer_handle_top",
-    #             offset=OffsetCfg(
-    #                 pos=(0.305, 0.0, 0.01),
-    #                 rot=(0.5, 0.5, -0.5, -0.5),  # align with end-effector frame
-    #             ),
-    #         ),
-    #     ],
-    # )
-
-    # # Adding a sphere to the scene
-    # sphere = AssetBaseCfg(
-    #     prim_path="{ENV_REGEX_NS}/Sphere",
-    #     spawn=sim_utils.SphereCfg(
-    #         radius=0.03,  # radius of the sphere
-    #     ),
-    #     init_state=AssetBaseCfg.InitialStateCfg(
-    #         pos=(0.0, 0.0, 1.0),  # position of the sphere
-    #     ),
-    # )
     table = AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/tiny_tennis_table",
         spawn=sim_utils.UsdFileCfg(
@@ -144,14 +93,166 @@ class CartpoleSceneCfg(InteractiveSceneCfg):
     )
     
     # articulation
-    unitree_go1: ArticulationCfg = UNITREE_GO1_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+    robot: ArticulationCfg = UNITREE_GO1_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+
+
+##
+# MDP settings
+##
+
+
+@configclass
+class CommandsCfg:
+    """Command terms for the MDP."""
+
+    # no commands for this MDP
+    null = mdp.NullCommandCfg()
+
+
+@configclass
+class ActionsCfg:
+    """Action specifications for the MDP."""
+
+    # joint_effort = mdp.JointEffortActionCfg(asset_name="robot", joint_names=["slider_to_cart"], scale=100.0)
+    pass
+
+
+@configclass
+class ObservationsCfg:
+    """Observation specifications for the MDP."""
+
+    @configclass
+    class PolicyCfg(ObsGroup):
+        """Observations for policy group."""
+
+        # observation terms (order preserved)
+        joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel)
+        joint_vel_rel = ObsTerm(func=mdp.joint_vel_rel)
+
+        def __post_init__(self) -> None:
+            self.enable_corruption = False
+            self.concatenate_terms = True
+
+    # observation groups
+    policy: PolicyCfg = PolicyCfg()
+
+
+@configclass
+class EventCfg:
+    """Configuration for events."""
+
+    # reset
+    # reset_cart_position = EventTerm(
+    #     func=mdp.reset_joints_by_offset,
+    #     mode="reset",
+    #     params={
+    #         "asset_cfg": SceneEntityCfg("robot", joint_names=["slider_to_cart"]),
+    #         "position_range": (-1.0, 1.0),
+    #         "velocity_range": (-0.5, 0.5),
+    #     },
+    # )
+
+    # reset_pole_position = EventTerm(
+    #     func=mdp.reset_joints_by_offset,
+    #     mode="reset",
+    #     params={
+    #         "asset_cfg": SceneEntityCfg("robot", joint_names=["cart_to_pole"]),
+    #         "position_range": (-0.25 * math.pi, 0.25 * math.pi),
+    #         "velocity_range": (-0.25 * math.pi, 0.25 * math.pi),
+    #     },
+    # )
+    pass
+
+
+@configclass
+class RewardsCfg:
+    """Reward terms for the MDP."""
+
+    # (1) Constant running reward 鼓励Agent尽可能长时间地存活。
+    alive = RewTerm(func=mdp.is_alive, weight=1.0)
+    # (2) Failure penalty 惩罚Agent终止。
+    terminating = RewTerm(func=mdp.is_terminated, weight=-2.0)
+    # # (3) Primary task: keep pole upright 鼓励Agent保持杆直立。
+    # pole_pos = RewTerm(
+    #     func=mdp.joint_pos_target_l2,
+    #     weight=-1.0,
+    #     params={"asset_cfg": SceneEntityCfg("robot", joint_names=["cart_to_pole"]), "target": 0.0},
+    # )
+    # # (4) Shaping tasks: lower cart velocity 鼓励Agent减小小车速度。
+    # cart_vel = RewTerm(
+    #     func=mdp.joint_vel_l1,
+    #     weight=-0.01,
+    #     params={"asset_cfg": SceneEntityCfg("robot", joint_names=["slider_to_cart"])},
+    # )
+    # # (5) Shaping tasks: lower pole angular velocity 鼓励Agent减小杆角速度。
+    # pole_vel = RewTerm(
+    #     func=mdp.joint_vel_l1,
+    #     weight=-0.005,
+    #     params={"asset_cfg": SceneEntityCfg("robot", joint_names=["cart_to_pole"])},
+    # )
+
+
+@configclass
+class TerminationsCfg:
+    """Termination terms for the MDP."""
+
+    # (1) Time out
+    time_out = DoneTerm(func=mdp.time_out, time_out=True)
+    # (2) Cart out of bounds
+    # cart_out_of_bounds = DoneTerm(
+    #     func=mdp.joint_pos_out_of_manual_limit,
+    #     params={"asset_cfg": SceneEntityCfg("robot", joint_names=["slider_to_cart"]), "bounds": (-3.0, 3.0)},
+    # )
+    pass
+
+
+@configclass
+class CurriculumCfg:
+    """Configuration for the curriculum."""
+
+    pass
+
+
+##
+# Environment configuration
+##
+
+
+@configclass
+class QuadrupedEnvCfg(ManagerBasedRLEnvCfg):
+    """Configuration for the locomotion velocity-tracking environment."""
+
+    # Scene settings
+    scene: QuadrupedSceneCfg = QuadrupedSceneCfg(num_envs=4096, env_spacing=4.0)
+    # Basic settings
+    observations: ObservationsCfg = ObservationsCfg()
+    actions: ActionsCfg = ActionsCfg()
+    events: EventCfg = EventCfg()
+    # MDP settings
+    curriculum: CurriculumCfg = CurriculumCfg()
+    rewards: RewardsCfg = RewardsCfg()
+    terminations: TerminationsCfg = TerminationsCfg()
+    # No command generator
+    commands: CommandsCfg = CommandsCfg()
+
+    # Post initialization
+    def __post_init__(self) -> None:
+        """Post initialization."""
+        # general settings
+        self.decimation = 2
+        self.episode_length_s = 5
+        # viewer settings
+        self.viewer.eye = (8.0, 0.0, 5.0)
+        # simulation settings
+        self.sim.dt = 1 / 120
+        self.sim.render_interval = self.decimation
 
 
 def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     """Runs the simulation loop."""
     # Extract scene entities
     # note: we only do this here for readability.
-    robot = scene["unitree_go1"]
+    robot = scene["robot"]
     # Define simulation stepping
     sim_dt = sim.get_physics_dt()
     count = 0
@@ -192,20 +293,32 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
 def main():
     """Main function."""
-    # Load kit helper
-    sim_cfg = sim_utils.SimulationCfg(device="cpu", use_gpu_pipeline=False)
-    sim = SimulationContext(sim_cfg)
-    # Set main camera
-    sim.set_camera_view([2.5, 0.0, 4.0], [0.0, 0.0, 2.0])
-    # Design scene
-    scene_cfg = CartpoleSceneCfg(num_envs=args_cli.num_envs, env_spacing=2.0)
-    scene = InteractiveScene(scene_cfg)
-    # Play the simulator
-    sim.reset()
-    # Now we are ready!
-    print("[INFO]: Setup complete...")
-    # Run the simulator
-    run_simulator(sim, scene)
+    # create environment configuration
+    env_cfg = QuadrupedEnvCfg()
+    env_cfg.scene.num_envs = args_cli.num_envs
+    # setup RL environment
+    env = ManagerBasedRLEnv(cfg=env_cfg)
+
+    # simulate physics
+    count = 0
+    while simulation_app.is_running():
+        with torch.inference_mode():
+            # reset
+            if count % 300 == 0:
+                count = 0
+                env.reset()
+                print("-" * 80)
+                print("[INFO]: Resetting environment...")
+            # sample random actions
+            joint_efforts = torch.randn_like(env.action_manager.action)
+            # step the environment
+            obs, rew, terminated, truncated, info = env.step(joint_efforts)
+            # print current orientation of pole
+            # update counter
+            count += 1
+
+    # close the environment
+    env.close()
 
 
 if __name__ == "__main__":
