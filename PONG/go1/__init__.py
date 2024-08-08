@@ -5,28 +5,28 @@
 
 import gymnasium as gym
 
-from . import agents, navigation_env_cfg
+from . import agents, pong_env_cfg
 
 ##
 # Register Gym environments.
 ##
 
 gym.register(
-    id="Isaac-Navigation-Flat-GO-1-v0",
+    id="Isaac-Pong-Flat-GO-1-v0",
     entry_point="omni.isaac.lab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
-        "env_cfg_entry_point": navigation_env_cfg.NavigationEnvCfg,
-        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:NavigationEnvPPORunnerCfg",
+        "env_cfg_entry_point": pong_env_cfg.PongEnvCfg,
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:PongEnvPPORunnerCfg",
     },
 )
 
 gym.register(
-    id="Isaac-Navigation-Flat-GO-1-Play-v0",
+    id="Isaac-Pong-Flat-GO-1-Play-v0",
     entry_point="omni.isaac.lab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
-        "env_cfg_entry_point": navigation_env_cfg.NavigationEnvCfg_PLAY,
-        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:NavigationEnvPPORunnerCfg",
+        "env_cfg_entry_point": pong_env_cfg.PongEnvCfg_PLAY,
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:PongEnvPPORunnerCfg",
     },
 )

@@ -39,12 +39,13 @@ from pong_env import QuadrupedEnv, QuadrupedEnvCfg
 
 from omni.isaac.lab.envs import DirectRLEnv, DirectRLEnvCfg
 # from omni.isaac.lab_tasks.manager_based.navigation.config.anymal_c.navigation_env_cfg import NavigationEnvCfg
-from go1.navigation_env_cfg import NavigationEnvCfg
+from go1.pong_env_cfg import PongEnvCfg
 
 def main():
     """Main function."""
     # create environment configuration
-    env_cfg = NavigationEnvCfg()
+    env_cfg = PongEnvCfg()
+
     env_cfg.scene.num_envs = args_cli.num_envs
     # setup RL environment
     # env = ManagerBasedRLEnv(cfg=env_cfg)

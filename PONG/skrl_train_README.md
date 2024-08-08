@@ -1,9 +1,9 @@
 # Command
 ## Headless execution
-isaaclab.bat -p user/tutorial/skrl_example_train.py --num_envs 64  --gpu 0
+isaaclab.bat -p user/PONG/skrl_pong_train.py --num_envs 64
 
 ## Headless execution with off-screen render
-isaaclab.bat -p user/tutorial/skrl_example_train.py --num_envs 64 --headless --enable_cameras --video
+isaaclab.bat -p user/PONG/skrl_pong_train.py --num_envs 64 --headless --enable_cameras --video
 
 ## View the logs
 isaaclab.bat -p -m tensorboard.main --logdir runs/torch/Isaac-Velocity-Anymal-C-v0

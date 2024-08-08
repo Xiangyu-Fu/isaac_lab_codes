@@ -14,7 +14,7 @@ from skrl.utils import set_seed
 
 
 # 设置随机种子以确保结果的可重复性
-set_seed()  # 例如使用 `set_seed(42)` 来设置固定的随机种子
+set_seed(42)  # 例如使用 `set_seed(42)` 来设置固定的随机种子
 
 
 # 定义共享模型（包括随机和确定性模型）使用混合类
@@ -54,11 +54,13 @@ class Shared(GaussianMixin, DeterministicMixin, Model):
             return self.value_layer(shared_output), {}
 
 
+
 # 加载并包装Isaac Lab环境
-env = load_isaaclab_env(task_name="Isaac-Velocity-Flat-Unitree-Go1-v0", headless=False, num_envs=64)
+env = load_isaaclab_env(task_name="Isaac-Pong-Flat-GO-1-v0", num_envs=64)
 env = wrap_env(env)
 
 device = env.device
+print(f"Device: {device} \n \n \n ")
 
 
 # 实例化一个记忆模块作为回滚缓冲区（可以使用任何记忆模块）
