@@ -13,7 +13,7 @@ from omni.isaac.lab.app import AppLauncher
 
 # add argparse arguments
 parser = argparse.ArgumentParser(description="Tutorial on running the cartpole RL environment.")
-parser.add_argument("--num_envs", type=int, default=16, help="Number of environments to spawn.")
+parser.add_argument("--num_envs", type=int, default=1, help="Number of environments to spawn.")
 parser.add_argument("--task", type=str, default="None", help="Task name.")
 
 # append AppLauncher cli args
@@ -38,34 +38,38 @@ sys.path.append('C:/ML_Projects/IsaacLab/user/PONG')
 from pong_env import QuadrupedEnv, QuadrupedEnvCfg
 
 from omni.isaac.lab.envs import DirectRLEnv, DirectRLEnvCfg
-
+# from omni.isaac.lab_tasks.manager_based.navigation.config.anymal_c.navigation_env_cfg import NavigationEnvCfg
+from go1.navigation_env_cfg import NavigationEnvCfg
 
 def main():
     """Main function."""
     # create environment configuration
-    env_cfg = QuadrupedEnvCfg()
+    env_cfg = NavigationEnvCfg()
     env_cfg.scene.num_envs = args_cli.num_envs
     # setup RL environment
     # env = ManagerBasedRLEnv(cfg=env_cfg)
     # Instantiate the environment
-    env = QuadrupedEnv(env_cfg)
+    env = ManagerBasedRLEnv(env_cfg)
 
     # Reset the environment
-    env.reset()
+    # env.reset()
 
     # Simulate for a number of steps
-    num_steps = 100
-    for _ in range(num_steps):
-        # Generate random actions
-        actions = torch.rand((env.num_envs, 4)) * 2 - 1  # Random actions between -1 and 1
-
-        # Step the environment
-        env.step(actions)
-
-        # # Optionally render the scene
-        # if simulation_app.is_hardware_renderer:
-        #     simulation_app.update()
-
+    count = 0
+    while simulation_app.is_running():
+        with torch.inference_mode():
+            # reset
+            if count % 300 == 0:
+                count = 0
+                env.reset()
+                print("-" * 80)
+                print("[INFO]: Resetting environment...")
+            # sample random actions
+            joint_efforts = torch.randn_like(env.action_manager.action)
+            # step the environment
+            obs, rew, terminated, truncated, info = env.step(joint_efforts)
+            # update counter
+            count += 1
     # Close the simulation app
     simulation_app.close()
 

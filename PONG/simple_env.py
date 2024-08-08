@@ -64,7 +64,7 @@ from omni.isaac.lab.envs import ManagerBasedRLEnvCfg, ManagerBasedRLEnv
 import omni.isaac.lab_tasks.manager_based.locomotion.velocity.mdp as mdp
 from omni.isaac.lab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 from omni.isaac.lab.managers import CurriculumTermCfg as CurrTerm
-from omni.isaac.lab.sensors import ContactSensorCfg, RayCasterCfg, patterns
+from omni.isaac.lab.sensors import ContactSensorCfg, RayCasterCfg, patterns, CameraCfg
 
 from omni.isaac.lab.managers import EventTermCfg as EventTerm
 from omni.isaac.lab.managers import ObservationGroupCfg as ObsGroup
@@ -93,10 +93,10 @@ class QuadrupedSceneCfg(InteractiveSceneCfg):
     table = AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/tiny_tennis_table",
         spawn=sim_utils.UsdFileCfg(
-            usd_path="/user/usd_asset/tiny_tennis_table_1.usd",
+            usd_path="C:/ML_Projects/IsaacLab/user/usd_asset/tiny_tennis_table_1.usd",
         ),
         init_state=ArticulationCfg.InitialStateCfg(
-        pos=(2.0, 0.0, 0.4),
+        pos=(2.0, 0.0, 0.0),
         rot=(0.0, 0.0, 0.0, 1.0),
         ),
     )
@@ -105,6 +105,17 @@ class QuadrupedSceneCfg(InteractiveSceneCfg):
     robot: ArticulationCfg = MISSING
 
     # sensors
+    camera = CameraCfg(
+        prim_path="{ENV_REGEX_NS}/Robot/.*",
+        update_period=0.1,
+        height=480,
+        width=640,
+        data_types=["rgb", "distance_to_image_plane"],
+        spawn=sim_utils.PinholeCameraCfg(
+            focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 1.0e5)
+        ),
+        offset=CameraCfg.OffsetCfg(pos=(0.510, 0.0, 0.015), rot=(0.5, -0.5, 0.5, -0.5), convention="ros"),
+    )
     height_scanner = RayCasterCfg(
         prim_path="{ENV_REGEX_NS}/Robot/base",
         update_period=0.02,
@@ -374,6 +385,7 @@ class UnitreeGo1RoughEnvCfg(QuadrupedEnvCfg):
 
         self.scene.robot = UNITREE_GO1_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/trunk"
+        self.scene.camera.prim_path = "{ENV_REGEX_NS}/Robot/front_cam"
         # # scale down the terrains because the robot is small
         # self.scene.terrain.terrain_generator.sub_terrains["boxes"].grid_height_range = (0.025, 0.1)
         # self.scene.terrain.terrain_generator.sub_terrains["random_rough"].noise_range = (0.01, 0.06)
@@ -436,6 +448,7 @@ def main():
             obs, rew, terminated, truncated, info = env.step(joint_efforts)
             # update counter
             count += 1
+            
 
     # close the environment
     env.close()
