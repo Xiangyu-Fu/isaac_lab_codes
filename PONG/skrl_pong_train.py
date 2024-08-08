@@ -56,7 +56,7 @@ class Shared(GaussianMixin, DeterministicMixin, Model):
 
 
 # 加载并包装Isaac Lab环境
-env = load_isaaclab_env(task_name="Isaac-Pong-Flat-GO-1-v0", num_envs=64)
+env = load_isaaclab_env(task_name="Isaac-Pong-Flat-GO-1-v0", headless=True, num_envs=64)
 env = wrap_env(env)
 
 device = env.device
