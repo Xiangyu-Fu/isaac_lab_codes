@@ -93,7 +93,7 @@ class QuadrupedSceneCfg(InteractiveSceneCfg):
     table = AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/tiny_tennis_table",
         spawn=sim_utils.UsdFileCfg(
-            usd_path="C:/ML_Projects/IsaacLab/user/usd_asset/tiny_tennis_table_1.usd",
+            usd_path="/user/usd_asset/tiny_tennis_table_1.usd",
         ),
         init_state=ArticulationCfg.InitialStateCfg(
         pos=(2.0, 0.0, 0.4),
@@ -104,15 +104,16 @@ class QuadrupedSceneCfg(InteractiveSceneCfg):
     # articulation
     robot: ArticulationCfg = MISSING
 
-    # # sensors
-    # height_scanner = RayCasterCfg(
-    #     prim_path="{ENV_REGEX_NS}/Robot/base",
-    #     offset=RayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 20.0)),
-    #     attach_yaw_only=True,
-    #     pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=[1.6, 1.0]),
-    #     debug_vis=False,
-    #     mesh_prim_paths=["/World/ground"],
-    # )
+    # sensors
+    height_scanner = RayCasterCfg(
+        prim_path="{ENV_REGEX_NS}/Robot/base",
+        update_period=0.02,
+        offset=RayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 20.0)),
+        attach_yaw_only=True,
+        pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=[1.6, 1.0]),
+        debug_vis=False,
+        mesh_prim_paths=["/World/defaultGroundPlane"],
+    )
     contact_forces = ContactSensorCfg(prim_path="{ENV_REGEX_NS}/Robot/.*", history_length=3, track_air_time=True)
 
     # lights
@@ -132,8 +133,9 @@ class QuadrupedSceneCfg(InteractiveSceneCfg):
 @configclass
 class CommandsCfg:
     """Command specifications for the MDP."""
+    # For various goal-conditioned tasks, it is useful to specify the goals or commands for the agent.
 
-    base_velocity = mdp.UniformVelocityCommandCfg(
+    base_velocity = mdp.UniformVelocityCommandCfg(  # 描述基础速度命令, 是否还有其他命令？--> source code
         asset_name="robot",
         resampling_time_range=(10.0, 10.0),
         rel_standing_envs=0.02,
@@ -151,7 +153,7 @@ class CommandsCfg:
 class ActionsCfg:
     """Action specifications for the MDP."""
 
-    joint_pos = mdp.JointPositionActionCfg(asset_name="robot", joint_names=[".*"], scale=0.5, use_default_offset=True)
+    joint_pos = mdp.JointPositionActionCfg(asset_name="robot", joint_names=[".*"], scale=0.5, use_default_offset=True)  # set for all joints
 
 
 @configclass
@@ -173,12 +175,12 @@ class ObservationsCfg:
         joint_pos = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
         joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-1.5, n_max=1.5))
         actions = ObsTerm(func=mdp.last_action)
-        # height_scan = ObsTerm(
-        #     func=mdp.height_scan,
-        #     params={"sensor_cfg": SceneEntityCfg("height_scanner")},
-        #     noise=Unoise(n_min=-0.1, n_max=0.1),
-        #     clip=(-1.0, 1.0),
-        # )
+        height_scan = ObsTerm(
+            func=mdp.height_scan,
+            params={"sensor_cfg": SceneEntityCfg("height_scanner")},
+            noise=Unoise(n_min=-0.1, n_max=0.1),
+            clip=(-1.0, 1.0),
+        )
 
         def __post_init__(self):
             self.enable_corruption = True
@@ -300,7 +302,10 @@ class RewardsCfg:
 class TerminationsCfg:
     """Termination terms for the MDP."""
 
+    # (1) Time out
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
+
+    # (2) Base contact
     base_contact = DoneTerm(
         func=mdp.illegal_contact,
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="trunk"), "threshold": 1.0},
@@ -311,7 +316,7 @@ class TerminationsCfg:
 class CurriculumCfg:
     """Curriculum terms for the MDP."""
 
-    terrain_levels = CurrTerm(func=mdp.terrain_levels_vel)
+    # terrain_levels = CurrTerm(func=mdp.terrain_levels_vel)
 
 
 ##
@@ -347,10 +352,10 @@ class QuadrupedEnvCfg(ManagerBasedRLEnvCfg):
         # self.sim.physics_material = self.scene.terrain.physics_material
         # update sensor update periods
         # we tick all the sensors based on the smallest update period (physics update period)
-        # if self.scene.height_scanner is not None:
-        #     self.scene.height_scanner.update_period = self.decimation * self.sim.dt
-        # if self.scene.contact_forces is not None:
-        #     self.scene.contact_forces.update_period = self.sim.dt
+        if self.scene.height_scanner is not None:
+            self.scene.height_scanner.update_period = self.decimation * self.sim.dt
+        if self.scene.contact_forces is not None:
+            self.scene.contact_forces.update_period = self.sim.dt
 
         # check if terrain levels curriculum is enabled - if so, enable curriculum for terrain generator
         # this generates terrains with increasing difficulty and is useful for training
@@ -368,7 +373,7 @@ class UnitreeGo1RoughEnvCfg(QuadrupedEnvCfg):
         super().__post_init__()
 
         self.scene.robot = UNITREE_GO1_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
-        # self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/trunk"
+        self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/trunk"
         # # scale down the terrains because the robot is small
         # self.scene.terrain.terrain_generator.sub_terrains["boxes"].grid_height_range = (0.025, 0.1)
         # self.scene.terrain.terrain_generator.sub_terrains["random_rough"].noise_range = (0.01, 0.06)
@@ -420,16 +425,15 @@ def main():
     while simulation_app.is_running():
         with torch.inference_mode():
             # reset
-            # if count % 300 == 0:
-            #     count = 0
-            #     env.reset()
-            #     print("-" * 80)
-            #     print("[INFO]: Resetting environment...")
+            if count % 300 == 0:
+                count = 0
+                env.reset()
+                print("-" * 80)
+                print("[INFO]: Resetting environment...")
             # sample random actions
             joint_efforts = torch.randn_like(env.action_manager.action)
             # step the environment
             obs, rew, terminated, truncated, info = env.step(joint_efforts)
-            # print current orientation of pole
             # update counter
             count += 1
 
