@@ -56,11 +56,11 @@ class Shared(GaussianMixin, DeterministicMixin, Model):
 
 
 # 加载并包装Isaac Lab环境
-env = load_isaaclab_env(task_name="Isaac-Pong-Flat-GO-1-v0", headless=True, num_envs=64)
+env = load_isaaclab_env(task_name="Isaac-Pong-Flat-GO-1-Play-v0", num_envs=4)
 env = wrap_env(env)
 
 device = env.device
-print(f"Device: {device} \n \n \n ")
+print(f"Device: {device}")
 
 
 # 实例化一个记忆模块作为回滚缓冲区（可以使用任何记忆模块）
@@ -115,8 +115,63 @@ agent = PPO(models=models,
 
 
 # 配置并实例化RL训练器
-cfg_trainer = {"timesteps": 10000, "headless": True}
+cfg_trainer = {"timesteps": 10000, "headless": False}
 trainer = SequentialTrainer(cfg=cfg_trainer, env=env, agents=agent)
 
-# 开始训练
-trainer.train()
+# # 开始训练
+# trainer.train()
+
+
+# 训练完成后，加载训练好的模型
+agent.load("runs/torch/Isaac-Unitree/24-08-09_10-52-46-273937_PPO/checkpoints/best_agent.pt")
+
+# 设置智能体为测试模式
+agent.set_mode("eval")
+
+# 运行并测试智能体
+states = env.reset()
+states = states[0].cpu().numpy()
+total_reward = 0
+timestep = 0  # 初始化时间步
+
+for _ in range(1000):  # 运行1000个时间步
+    actions = agent.act(torch.tensor(states).cuda(0), timestep, 1000)
+    next_states, rewards, _, dones, infos = env.step(actions[0])
+    states = next_states.cpu().numpy()
+    total_reward += rewards.sum().item()
+
+    # 可视化环境
+    env.render()
+
+    timestep += 1  # 增加时间步
+
+    if dones.all():
+        break
+
+print(f"Total reward: {total_reward}")
+
+# 运行多个回合并评估智能体的表现
+num_episodes = 10
+total_rewards = []
+
+for episode in range(num_episodes):
+    states = env.reset()
+    episode_reward = 0
+    timestep = 0  # 每个回合重置时间步
+
+    while True:
+        actions, _ = agent.act(states, timestep, 1000)
+        next_states, rewards, dones, infos = env.step(actions)
+        states = next_states
+        episode_reward += rewards.sum().item()
+
+        timestep += 1  # 增加时间步
+
+        if dones.all():
+            break
+
+    total_rewards.append(episode_reward)
+    print(f"Episode {episode + 1}: Reward = {episode_reward}")
+
+average_reward = sum(total_rewards) / num_episodes
+print(f"Average Reward over {num_episodes} episodes: {average_reward}")
